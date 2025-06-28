@@ -83,32 +83,44 @@
     let userAddress;
 
     async function connectWallet() {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = await provider.getSigner();
-      userAddress = await signer.getAddress();
-      document.getElementById("userAddress").innerText = userAddress;
-      contract = new ethers.Contract(contractAddress, abi, signer);
-
-      const isMember = await contract.members(userAddress);
-      document.getElementById("membershipStatus").innerText = isMember ? "Członek" : "Nieczłonek";
-
-      const balance = await contract.getBalance();
-      document.getElementById("contractBalance").innerText = ethers.formatEther(balance);
-
-      const owner = await contract.owner();
-      document.getElementById("contractOwner").innerText = owner;
-
-      let proposalCount = 0;
-      for (let i = 0; i < 100; i++) {
-        try {
-          await contract.proposals(i);
-          proposalCount++;
-        } catch (e) {
-          break;
+      try {
+        if (!window.ethereum) {
+          alert("Zainstaluj MetaMask!");
+          return;
         }
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        document.getElementById("userAddress").innerText = userAddress;
+        contract = new ethers.Contract(contractAddress, abi, signer);
+
+        const isMember = await contract.members(userAddress);
+        document.getElementById("membershipStatus").innerText = isMember ? "Członek" : "Nieczłonek";
+
+        const balance = await contract.getBalance();
+        document.getElementById("contractBalance").innerText = ethers.formatEther(balance);
+
+        const owner = await contract.owner();
+        document.getElementById("contractOwner").innerText = owner;
+
+        let proposalCount = 0;
+        for (let i = 0; i < 100; i++) {
+          try {
+            await contract.proposals(i);
+            proposalCount++;
+          } catch (e) {
+            break;
+          }
+        }
+        document.getElementById("proposalCount").innerText = proposalCount;
+
+        alert("Połączono z portfelem!");
+      } catch (error) {
+        console.error(error);
+        alert("Błąd podczas łączenia z MetaMask");
       }
-      document.getElementById("proposalCount").innerText = proposalCount;
     }
 
     async function joinDAO() {
