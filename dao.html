@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AssociationDAO Frontend</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin: 5px; }
+    input, textarea { width: 100%; margin: 5px 0; padding: 5px; }
+    .proposal { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h1>AssociationDAO</h1>
+
+  <div>
+    <button onclick="connectWallet()">Połącz z MetaMask</button>
+    <p>Adres: <span id="userAddress"></span></p>
+    <p>Status: <span id="membershipStatus"></span></p>
+    <p>Saldo kontraktu: <span id="contractBalance"></span> ETH</p>
+    <p>Właściciel kontraktu: <span id="contractOwner"></span></p>
+  </div>
+
+  <hr />
+
+  <div>
+    <h3>Dołącz do Stowarzyszenia (0.05 ETH)</h3>
+    <button onclick="joinDAO()">Dołącz</button>
+  </div>
+
+  <hr />
+
+  <div>
+    <h3>Utwórz Propozycję</h3>
+    <input type="text" id="recipient" placeholder="Adres odbiorcy" />
+    <input type="number" id="amount" placeholder="Kwota w wei" />
+    <textarea id="description" placeholder="Opis propozycji"></textarea>
+    <button onclick="createProposal()">Utwórz</button>
+  </div>
+
+  <hr />
+
+  <div>
+    <h3>Lista Propozycji</h3>
+    <div id="proposalList"></div>
+    <button onclick="loadProposals()">Załaduj propozycje</button>
+  </div>
+
+  <hr />
+
+  <div>
+    <h3>Głosuj na propozycję</h3>
+    <input type="number" id="voteId" placeholder="ID propozycji" />
+    <button onclick="vote()">Głosuj</button>
+  </div>
+
+  <hr />
+
+  <div>
+    <h3>Wykonaj propozycję</h3>
+    <input type="number" id="execId" placeholder="ID propozycji" />
+    <button onclick="executeProposal()">Wykonaj</button>
+  </div>
+
+  <script>
+    const contractAddress = "0x7A4a10791C38A92b9c9A819CcdaD9D0161373486";
+    const abi = [
+      "function join() external payable",
+      "function members(address) view returns (bool)",
+      "function createProposal(address payable,uint256,string memory) public",
+      "function vote(uint256) public",
+      "function execute(uint256) public",
+      "function getBalance() public view returns (uint)",
+      "function proposals(uint) public view returns (address,uint,string,uint,bool)",
+      "function owner() view returns (address)"
+    ];
+
+    let signer;
+    let contract;
+    let userAddress;
+
+    async function connectWallet() {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      userAddress = await signer.getAddress();
+      document.getElementById("userAddress").innerText = userAddress;
+      contract = new ethers.Contract(contractAddress, abi, signer);
+
+      const isMember = await contract.members(userAddress);
+      document.getElementById("membershipStatus").innerText = isMember ? "Członek" : "Nieczłonek";
+
+      const balance = await contract.getBalance();
+      document.getElementById("contractBalance").innerText = ethers.formatEther(balance);
+
+      const owner = await contract.owner();
+      document.getElementById("contractOwner").innerText = owner;
+    }
+
+    async function joinDAO() {
+      const tx = await contract.join({ value: ethers.parseEther("0.05") });
+      await tx.wait();
+      alert("Dołączono do stowarzyszenia!");
+    }
+
+    async function createProposal() {
+      const recipient = document.getElementById("recipient").value;
+      const amount = document.getElementById("amount").value;
+      const description = document.getElementById("description").value;
+      const tx = await contract.createProposal(recipient, amount, description);
+      await tx.wait();
+      alert("Propozycja utworzona");
+    }
+
+    async function vote() {
+      const id = document.getElementById("voteId").value;
+      const tx = await contract.vote(id);
+      await tx.wait();
+      alert("Zagłosowano!");
+    }
+
+    async function executeProposal() {
+      const id = document.getElementById("execId").value;
+      const tx = await contract.execute(id);
+      await tx.wait();
+      alert("Propozycja wykonana");
+    }
+
+    async function loadProposals() {
+      const container = document.getElementById("proposalList");
+      container.innerHTML = "";
+      for (let i = 0; i < 10; i++) {
+        try {
+          const proposal = await contract.proposals(i);
+          const div = document.createElement("div");
+          div.className = "proposal";
+          div.innerHTML = `<strong>ID ${i}</strong><br>
+            Odbiorca: ${proposal[0]}<br>
+            Kwota: ${proposal[1]} wei<br>
+            Opis: ${proposal[2]}<br>
+            Głosy: ${proposal[3]}<br>
+            Wykonano: ${proposal[4]}`;
+          container.appendChild(div);
+        } catch (e) {
+          break;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
